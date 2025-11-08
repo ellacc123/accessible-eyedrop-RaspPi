@@ -1,18 +1,20 @@
+# play short tunes or sound alerts through buzzer (success/fail tune) 
+
 import RPi.GPIO as GPIO
 import time
 
-# 蜂鸣器连接的GPIO口
+# GPIO pin connected to the buzzer
 buzzer_pin = 23
 
-# 使用BCM编号方式
+# Use BCM numbering
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(buzzer_pin, GPIO.OUT)
 
-# 初始化PWM（初始频率可任意设置）
+# Initialize PWM (initial frequency can be set arbitrarity)
 pwm = GPIO.PWM(buzzer_pin, 440)
-pwm.start(0)  # 初始静音
+pwm.start(0)  # start silent 
 
-# 定义音符对应的频率
+# Define frequencies corresponding to musical notes
 notes = {
     'do': 261,       # C4
     're': 293,       # D4
@@ -26,39 +28,41 @@ notes = {
 
 def play_melody(state, note_duration=0.05, pause=0.05):
     """
-    根据state播放音效：
-      - state="success" 播放 ['do', 're', 'mi', 'so']
-      - state="fail" 播放 ['so', 'mi', 're', 'do']
+    Play a melody based on the state:
+      - state="success" plays ['do', 're', 'mi', 'so']
+      - state="fail" plays ['so', 'mi', 're', 'do']
     """
     if state == "success":
         melody = ['do', 're', 'mi', 'so']
     elif state == "fail":
         melody = ['so', 'mi', 're', 'do']
     else:
-        print("未知状态")
+        print("Unknown state")
         return
     
     for note in melody:
         if note in notes:
             freq = notes[note]
             pwm.ChangeFrequency(freq)
-            pwm.ChangeDutyCycle(50)  # 发声
+            pwm.ChangeDutyCycle(50)  # sound ON
         else:
-            pwm.ChangeDutyCycle(0)   # 未定义音符时静音
+            pwm.ChangeDutyCycle(0)   # Silence if note is undefined
         time.sleep(note_duration)
-        # 每个音符播放后短暂静音
+        # Brief silence after each note
         pwm.ChangeDutyCycle(0)
         time.sleep(pause)
     # pwm.stop()
     # GPIO.cleanup()
 
-#     # 播放成功音效
-# print("播放成功音效")
+# Example usage:
+
+#     # play success melody
+# print("playing success sound")
 # play_melody("success")
 
-# time.sleep(1)  # 等待1秒
+# time.sleep(1)  # wait 1 second
 
-# # 播放失败音效
-# print("播放失败音效")
+# # Play failure melody 
+# print("Playing failure sound")
 # play_melody("fail")
 
