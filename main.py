@@ -10,6 +10,7 @@ from stepper_motor import move_forward, move_backward, cleanup as motor_cleanup
 from raft_process import process_video  # Using process_video from RAFT processing module
 from buzzer import play_melody
 
+
 #############################################
 # Global variables and shared data
 #############################################
@@ -32,24 +33,28 @@ def camera_capture_thread():
     from picamera2 import Picamera2
     picam2 = Picamera2()
     video_config = picam2.create_video_configuration(main={"format": "RGB888", "size": (640, 480)})
-    picam2.configure(video_config)
-    picam2.start()
+    picam2.configure(video_config) # apply video_config
+    picam2.start() # begin capturing frames
+
+    # Main capture Loop
     try:
-        while not camera_stop_event.is_set():
-            frame = picam2.capture_array()
-            if frame is not None:
-                if frame_queue.full():
-                    frame_queue.get()  # Discard the oldest frame
-                frame_queue.put(frame)
-            time.sleep(0.01)
+        while not camera_stop_event.is_set(): # continue until camera_stop_event 
+            frame = picam2.capture_array() # captures single frame as NumPy array
+            if frame is not None: # if whats captured isn't nothing
+                if frame_queue.full(): #checks that we capture 10 frames
+                    frame_queue.get()  # Discard the oldest frame to make room
+                frame_queue.put(frame) # made room for new frame
+            time.sleep(0.01) # pauses loop for 0.01 seconds 
     except Exception as e:
         print("Camera capture error:", e)
+
+    #finally block always runs whether there was an error or not
     finally:
-        picam2.stop()
-        cv2.destroyAllWindows()
+        picam2.stop() #stops camera safely
+        cv2.destroyAllWindows() #closes any OpenCV windows (good cleanup practice) 
 
 #############################################
-# Image Processing Thread: Display original and processed ROI,
+# Image Processing Thread: Display original and processed Region of Interest (ROI),
 # and update drop detection result
 #############################################
 def image_processing_thread():
@@ -60,13 +65,16 @@ def image_processing_thread():
     roi_h = 480 // 6
     AREA_THRESHOLD = 600
 
-    while not camera_stop_event.is_set():
+    while not camera_stop_event.is_set(): #continues as long as the camera system is running
         if not frame_queue.empty():
-            frame = frame_queue.get()
+            frame = frame_queue.get() #retrieves the latest frame captured earlier 
+                                      # that's ready for processing
             # Show original frame
-            cv2.imshow("Original view", frame)
+            cv2.imshow("Original view", frame) #currently what camera sees 
 
             # Extract ROI area
+            # converts to black-and-white image, and detecs white blobs (drops)
+            #shows the original & processed images for monitoring 
             roi = frame[y_offset:y_offset+roi_h, x_offset:x_offset+roi_w]
             gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
             ret, _ = cv2.threshold(gray_roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -82,9 +90,12 @@ def image_processing_thread():
 
             processed_view = cv2.cvtColor(roi_mask, cv2.COLOR_GRAY2BGR)
             cv2.imshow("Processed view", processed_view)
+            
+            #let's user stop entire camera system by pressing ESC 
             if cv2.waitKey(1) & 0xFF == 27:
-                camera_stop_event.set()
-        else:
+                camera_stop_event.set() # becomes true->camera capture & image processing thread stops
+       
+        else: #if the frame queue is empty, the therad sleeps for 0.005 seconds 
             time.sleep(0.005)
 
 #############################################
@@ -183,6 +194,7 @@ def main():
         camera_stop_event.set()
         motor_cleanup()
         GPIO.cleanup()
+
 
 # makes sure main only runs when the file is executed directly as a script, not
 # when it is imported as a module into another program
