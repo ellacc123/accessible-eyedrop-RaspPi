@@ -1,9 +1,9 @@
-import cv2
-import numpy as np
-import time
-import threading
-from queue import Queue
-import RPi.GPIO as GPIO
+import cv2 #library for image/video processing
+import numpy as np #for arrays/matrices 
+import time #delays/timestamps/executing time
+import threading #multiple tasks
+from queue import Queue #passing data between threads (i.e. one thread captures and another processes)
+import RPi.GPIO as GPIO #lets you control GPIO pins
 
 # Import stepper motor control, RAFT video processing, and buzzer sound functions
 from stepper_motor import move_forward, move_backward, cleanup as motor_cleanup
@@ -13,14 +13,17 @@ from buzzer import play_melody
 #############################################
 # Global variables and shared data
 #############################################
-frame_queue = Queue(maxsize=10)  # Queue to store camera frames
+frame_queue = Queue(maxsize=10)  # Queue to store camera frames (max 10 frames)
 camera_stop_event = threading.Event()  # To stop the entire camera capture system
 
 # Shared drop detection result between threads
 shared_drop = {"detected": False}
 
 # Recording stop event will be created per recording session (used only by the video record thread)
+# unlike camera_stop_event, this is created per recording session so each video recording
+# can be stopped individually
 record_stop_event = None
+
 
 #############################################
 # Camera Capture Thread (Single global camera instance)
@@ -181,5 +184,9 @@ def main():
         motor_cleanup()
         GPIO.cleanup()
 
+# makes sure main only runs when the file is executed directly as a script, not
+# when it is imported as a module into another program
+# # python main.py -> runs
+# # import main -> does not run because main() is not called automatically
 if __name__ == "__main__":
     main()
